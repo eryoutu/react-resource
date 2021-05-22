@@ -27,6 +27,7 @@ function Component(props, context, updater) {
   this.updater = updater || ReactNoopUpdateQueue;
 }
 
+// 判断是否是类函数
 Component.prototype.isReactComponent = {};
 
 /**

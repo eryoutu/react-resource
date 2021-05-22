@@ -143,11 +143,13 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  * change in behavior.
  * @param {*} source An annotation object (added by a transpiler or otherwise)
  * indicating filename, line number, and/or other information.
+ * @returns {*} 返回一个包含组件数据的对象，也就是一个 React Element
  * @internal
  */
 const ReactElement = function(type, key, ref, self, source, owner, props) {
   const element = {
     // This tag allows us to uniquely identify this as a React Element
+    // 标记这是个React Element
     $$typeof: REACT_ELEMENT_TYPE,
 
     // Built-in properties that belong on the element
@@ -358,6 +360,7 @@ export function createElement(type, config, children) {
   let self = null;
   let source = null;
 
+  // 将 config 处理后赋值给 props
   if (config != null) {
     if (hasValidRef(config)) {
       ref = config.ref;
@@ -385,6 +388,7 @@ export function createElement(type, config, children) {
 
   // Children can be more than one argument, and those are transferred onto
   // the newly allocated props object.
+  // 处理children，会被赋值给props.children
   const childrenLength = arguments.length - 2;
   if (childrenLength === 1) {
     props.children = children;
@@ -401,7 +405,8 @@ export function createElement(type, config, children) {
     props.children = childArray;
   }
 
-  // Resolve default props
+  // Resolve default props：处理 defaultProps
+  // eg：组件上的静态属性defaultProps（类组件和函数式组件都有）。
   if (type && type.defaultProps) {
     const defaultProps = type.defaultProps;
     for (propName in defaultProps) {
@@ -541,7 +546,12 @@ export function cloneElement(element, config, children) {
 
 /**
  * Verifies the object is a ReactElement.
- * See https://reactjs.org/docs/react-api.html#isvalidelement
+ * See https://reactjs.org/docs/react-api.html#
+ * 
+ * 验证合法React Element
+ * 
+ * 目前，在React中，所有JSX在运行时的返回结果（即React.createElement()的返回值）都是React Element。
+ * 
  * @param {?object} object
  * @return {boolean} True if `object` is a ReactElement.
  * @final
