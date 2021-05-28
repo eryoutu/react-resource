@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "packages": {
+    "react": {
+      "signature": "8dfd6786da054e5795f891f3757629f9",
+      "file": true,
+      "replaced": "^17.0.1"
+    },
+    "react-dom": {
+      "signature": "1574d3bfd6f78735a1bbc27d3f494223",
+      "file": true,
+      "replaced": "^17.0.1"
+    }
+  }
+}
