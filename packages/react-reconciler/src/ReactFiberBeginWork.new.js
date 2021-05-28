@@ -3119,6 +3119,7 @@ export function checkIfWorkInProgressReceivedUpdate() {
   return didReceiveUpdate;
 }
 
+// 复用current
 function bailoutOnAlreadyFinishedWork(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -3221,9 +3222,16 @@ function remountFiber(
   }
 }
 
+// Fiber树构建的“递”阶段
+// 根据传入的Fiber节点创建子Fiber节点，并将这两个Fiber节点连接起来
+// 当遍历到叶子节点（即没有子组件的组件）时就会进入“归”阶段
 function beginWork(
+  // 当前组件对应的Fiber节点在上一次更新时的Fiber节点，即workInProgress.alternate
+  // mount时，current为null
   current: Fiber | null,
+  // 当前组件对应的Fiber节点
   workInProgress: Fiber,
+  // 优先级相关
   renderLanes: Lanes,
 ): Fiber | null {
   let updateLanes = workInProgress.lanes;
@@ -3246,6 +3254,7 @@ function beginWork(
     }
   }
 
+  // update时
   if (current !== null) {
     // TODO: The factoring of this block is weird.
     if (
@@ -3261,6 +3270,10 @@ function beginWork(
     const oldProps = current.memoizedProps;
     const newProps = workInProgress.pendingProps;
 
+    // didReceiveUpdate === false 时即可以直接复用前一次更新的子Fiber
+    // 需满足的条件：
+    // 1. props、context、fiber.type不变
+    // 2. 当前节点优先级不够
     if (
       oldProps !== newProps ||
       hasLegacyContextChanged() ||
@@ -3481,6 +3494,7 @@ function beginWork(
           break;
         }
       }
+      // 复用current
       return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
     } else {
       if ((current.flags & ForceUpdateForLegacySuspense) !== NoFlags) {
@@ -3506,6 +3520,7 @@ function beginWork(
   // move this assignment out of the common path and into each branch.
   workInProgress.lanes = NoLanes;
 
+  // mount时：根据tag不同，创建不同的子Fiber节点
   switch (workInProgress.tag) {
     case IndeterminateComponent: {
       return mountIndeterminateComponent(

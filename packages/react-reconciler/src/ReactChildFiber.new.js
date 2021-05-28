@@ -1363,6 +1363,10 @@ export function cloneChildFibers(
     return;
   }
 
+  // 在这里 的createWorkInProgress中 
+  // current 指的是 workInprogress fiber 树中正要生成的节点。？？
+  // workInProgress 指的是上一次更新的fiber树中对应的节点。？？
+  // 这时，这两个节点有alterlate连起来吗？不是，更新时，这里一直走的workInProgress（也就是current）为null的逻辑。
   let currentChild = workInProgress.child;
   let newChild = createWorkInProgress(currentChild, currentChild.pendingProps);
   workInProgress.child = newChild;

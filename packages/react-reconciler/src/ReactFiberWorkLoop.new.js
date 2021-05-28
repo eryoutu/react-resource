@@ -768,6 +768,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
 
 // This is the entry point for every concurrent task, i.e. anything that
 // goes through Scheduler.
+// render 阶段开始：异步更新
 function performConcurrentWorkOnRoot(root, didTimeout) {
   if (enableProfilerTimer && enableProfilerNestedUpdatePhase) {
     resetNestedUpdateFlag();
@@ -995,6 +996,7 @@ function markRootSuspended(root, suspendedLanes) {
 
 // This is the entry point for synchronous tasks that don't go
 // through Scheduler
+// render 阶段开始：同步更新
 function performSyncWorkOnRoot(root) {
   if (enableProfilerTimer && enableProfilerNestedUpdatePhase) {
     syncNestedUpdateFlag();
@@ -1471,6 +1473,7 @@ export function renderHasNotSuspendedYet(): boolean {
   return workInProgressRootExitStatus === RootIncomplete;
 }
 
+// 为了工作fiber树（？？）创建第一个子fiber节点
 function renderRootSync(root: FiberRoot, lanes: Lanes) {
   const prevExecutionContext = executionContext;
   executionContext |= RenderContext;
@@ -1538,9 +1541,11 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 }
 
 // The work loop is an extremely hot path. Tell Closure not to inline it.
+// performSyncWorkOnRoot 会调用该方法
 /** @noinline */
 function workLoopSync() {
   // Already timed out, so perform work without checking if we need to yield.
+  // workInProgress 当前已创建的workInProgress fiber
   while (workInProgress !== null) {
     performUnitOfWork(workInProgress);
   }
@@ -1616,7 +1621,9 @@ function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
 }
 
 /** @noinline */
+// performConcurrentWorkOnRoot 会调用该方法
 // 可以中断的循环过程
+// 与 workLoopSync 方法的唯一的区别是是否调用shouldYield
 function workLoopConcurrent() {
   // Perform work until Scheduler asks us to yield
   while (workInProgress !== null && !shouldYield()) {
@@ -1624,6 +1631,7 @@ function workLoopConcurrent() {
   }
 }
 
+// 创建下一个Fiber节点并赋值给workInProgress，并将workInProgress与已创建的Fiber节点连接起来构成Fiber树。
 function performUnitOfWork(unitOfWork: Fiber): void {
   // The current, flushed, state of this fiber is the alternate. Ideally
   // nothing should rely on this, but relying on it here means that we don't

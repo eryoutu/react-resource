@@ -68,7 +68,7 @@ export const IdlePriority: ReactPriorityLevel = 95;
 // NoPriority is the absence of priority. Also React-only.
 export const NoPriority: ReactPriorityLevel = 90;
 
-// 判断当前是否有剩余时间
+// 判断当前浏览器帧是否有剩余时间
 export const shouldYield = Scheduler_shouldYield;
 export const requestPaint =
   // Fall back gracefully if we're running an older version of Scheduler.

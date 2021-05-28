@@ -784,6 +784,10 @@ function bubbleProperties(completedWork: Fiber) {
   return didBailout;
 }
 
+// render阶段的“归”阶段
+// 归阶段主要是干啥？
+// 当某个Fiber节点执行完completeWork，如果其存在兄弟Fiber节点（即fiber.sibling !== null），会进入其兄弟Fiber的“递”阶段。
+// 如果不存在兄弟Fiber，会进入父级Fiber的“归”阶段。
 function completeWork(
   current: Fiber | null,
   workInProgress: Fiber,
