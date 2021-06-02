@@ -262,6 +262,7 @@ export function reconcileChildren(
     // won't update its child set by applying minimal side-effects. Instead,
     // we will add them all to the child before it gets rendered. That means
     // we can optimize this reconciliation pass by not tracking side-effects.
+    // mounte 时
     workInProgress.child = mountChildFibers(
       workInProgress,
       null,
@@ -275,6 +276,9 @@ export function reconcileChildren(
 
     // If we had any progressed work already, that is invalid at this point so
     // let's throw it out.
+    // update 时
+    // reconcileChildFibers与mountChildFibers这两个方法的逻辑基本一致
+    // 唯一的区别是：reconcileChildFibers会为生成的Fiber节点带上effectTag属性
     workInProgress.child = reconcileChildFibers(
       workInProgress,
       current.child,
