@@ -3161,6 +3161,7 @@ function bailoutOnAlreadyFinishedWork(
 
   // This fiber doesn't have work, but its subtree does. Clone the child
   // fibers and continue.
+  // 判断子树是否需要更新？？
   cloneChildFibers(current, workInProgress);
   return workInProgress.child;
 }

@@ -699,6 +699,7 @@ export function diffProperties(
     ) {
       continue;
     }
+    // 处理 style
     if (propKey === STYLE) {
       if (__DEV__) {
         if (nextProp) {
@@ -743,6 +744,7 @@ export function diffProperties(
         styleUpdates = nextProp;
       }
     } else if (propKey === DANGEROUSLY_SET_INNER_HTML) {
+      // 处理富文本
       const nextHtml = nextProp ? nextProp[HTML] : undefined;
       const lastHtml = lastProp ? lastProp[HTML] : undefined;
       if (nextHtml != null) {
@@ -754,6 +756,7 @@ export function diffProperties(
         // inserted already.
       }
     } else if (propKey === CHILDREN) {
+      // 处理 children
       if (typeof nextProp === 'string' || typeof nextProp === 'number') {
         (updatePayload = updatePayload || []).push(propKey, '' + nextProp);
       }
@@ -763,6 +766,7 @@ export function diffProperties(
     ) {
       // Noop
     } else if (registrationNameDependencies.hasOwnProperty(propKey)) {
+      // 处理回调函数的注册
       if (nextProp != null) {
         // We eagerly listen to this even though we haven't committed yet.
         if (__DEV__ && typeof nextProp !== 'function') {

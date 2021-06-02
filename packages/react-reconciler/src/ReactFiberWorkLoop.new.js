@@ -1071,6 +1071,7 @@ function performSyncWorkOnRoot(root) {
   const finishedWork: Fiber = (root.current.alternate: any);
   root.finishedWork = finishedWork;
   root.finishedLanes = lanes;
+  // 开使 commit 工作流程
   commitRoot(root);
 
   // Before exiting, make sure there's a callback scheduled for the next
@@ -1631,7 +1632,8 @@ function workLoopConcurrent() {
   }
 }
 
-// 创建下一个Fiber节点并赋值给workInProgress，并将workInProgress与已创建的Fiber节点连接起来构成Fiber树。
+// 创建下一个Fiber节点并赋值给 workInProgress，
+// 并将 workInProgress 与已创建的Fiber节点连接起来构成Fiber树。
 function performUnitOfWork(unitOfWork: Fiber): void {
   // The current, flushed, state of this fiber is the alternate. Ideally
   // nothing should rely on this, but relying on it here means that we don't
@@ -1754,6 +1756,7 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
   }
 }
 
+// 开始 commit 工作流程
 function commitRoot(root) {
   const previousUpdateLanePriority = getCurrentUpdateLanePriority();
   try {

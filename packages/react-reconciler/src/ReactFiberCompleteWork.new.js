@@ -241,6 +241,7 @@ if (supportsMutation) {
     newProps: Props,
     rootContainerInstance: Container,
   ) {
+    // 主要是处理 props
     // If we have an alternate, that means this is an update and we need to
     // schedule a side-effect to do the updates.
     const oldProps = current.memoizedProps;
@@ -267,6 +268,8 @@ if (supportsMutation) {
       rootContainerInstance,
       currentHostContext,
     );
+    // 被处理完的props会被赋值给workInProgress.updateQueue，并最终会在commit阶段被渲染在页面上。
+    // updatePayload为数组形式，他的偶数索引的值为变化的prop key，奇数索引的值为变化的prop value。
     // TODO: Type this specific to this type of component.
     workInProgress.updateQueue = (updatePayload: any);
     // If the update payload indicates that there is a change or if there
@@ -795,6 +798,7 @@ function completeWork(
 ): Fiber | null {
   const newProps = workInProgress.pendingProps;
 
+  // 针对不同tag调用不同的处理逻辑
   switch (workInProgress.tag) {
     case IndeterminateComponent:
     case LazyComponent:
@@ -856,6 +860,7 @@ function completeWork(
       const rootContainerInstance = getRootHostContainer();
       const type = workInProgress.type;
       if (current !== null && workInProgress.stateNode != null) {
+        // 判断update时我们还需要考虑 workInProgress.stateNode != null（即该Fiber节点是否存在对应的DOM节点）
         updateHostComponent(
           current,
           workInProgress,
@@ -900,6 +905,7 @@ function completeWork(
             markUpdate(workInProgress);
           }
         } else {
+          // 为fiber创建对应DOM节点
           const instance = createInstance(
             type,
             newProps,
@@ -907,14 +913,18 @@ function completeWork(
             currentHostContext,
             workInProgress,
           );
-
+          
+          // 将子孙DOM节点插入刚生成的DOM节点中
+          // 将子fiber节点和其兄弟结束的return指向该workInProgress
           appendAllChildren(instance, workInProgress, false, false);
 
+          // DOM节点赋值给fiber.stateNode
           workInProgress.stateNode = instance;
 
           // Certain renderers require commit-time effects for initial mount.
           // (eg DOM renderer supports auto-focus for certain elements).
           // Make sure such renderers get scheduled for later work.
+          // 与update逻辑中的updateHostComponent类似的处理props的过程
           if (
             finalizeInitialChildren(
               instance,
