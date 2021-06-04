@@ -225,6 +225,7 @@ export function getPublicInstance(instance: Instance): * {
   return instance;
 }
 
+// ...focus blur相关
 export function prepareForCommit(containerInfo: Container): Object | null {
   eventsEnabled = ReactBrowserEventEmitterIsEnabled();
   selectionInformation = getSelectionInformation();
@@ -447,6 +448,7 @@ export function commitMount(
   }
 }
 
+// 为Fiber节点中updateQueue对应的内容渲染在页面上
 export function commitUpdate(
   domElement: Instance,
   updatePayload: Array<mixed>,

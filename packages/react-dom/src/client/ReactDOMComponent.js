@@ -343,12 +343,16 @@ function updateDOMProperties(
     const propKey = updatePayload[i];
     const propValue = updatePayload[i + 1];
     if (propKey === STYLE) {
+      // 处理 style
       setValueForStyles(domElement, propValue);
     } else if (propKey === DANGEROUSLY_SET_INNER_HTML) {
+      // 处理 DANGEROUSLY_SET_INNER_HTML
       setInnerHTML(domElement, propValue);
     } else if (propKey === CHILDREN) {
+      // 处理 children
       setTextContent(domElement, propValue);
     } else {
+      // 处理剩余 props
       setValueForProperty(domElement, propKey, propValue, isCustomComponentTag);
     }
   }
@@ -806,6 +810,7 @@ export function diffProperties(
   return updatePayload;
 }
 
+// 将Fiber节点中的updateQueue对应的内容渲染在页面上
 // Apply the diff.
 export function updateProperties(
   domElement: Element,

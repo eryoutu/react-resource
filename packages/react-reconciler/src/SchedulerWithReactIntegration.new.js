@@ -123,6 +123,7 @@ function reactPriorityToSchedulerPriority(reactPriorityLevel) {
   }
 }
 
+// 由Scheduler模块提供，用于以某个优先级异步调度一个回调函数
 export function scheduleCallback(
   reactPriorityLevel: ReactPriorityLevel,
   callback: SchedulerCallback,
