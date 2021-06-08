@@ -1,6 +1,7 @@
 import ReactDOM from 'react-dom';
 import './index.css';
-import App from './Bailout';
+// import App from './Bailout';
+import App from './effect-vs-layouteffect';
 // import reportWebVitals from './reportWebVitals';
 
 // <React.StrictMode></React.StrictMode>
