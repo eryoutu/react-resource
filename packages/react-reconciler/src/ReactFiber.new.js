@@ -127,7 +127,8 @@ function FiberNode(
    * 对于HostComponent，指DOM节点tagName
    */
   this.type = null;
-  // Fiber对应的真实DOM节点（仅对于host Component来说？？）
+  // 对于host Component来说，为Fiber节点对应的真实DOM节点
+  // 对于类组件来说，为ReactComponent实例
   this.stateNode = null;
 
   // Fiber：用于连接其他Fiber节点形成Fiber树
@@ -259,6 +260,7 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
   return IndeterminateComponent;
 }
 
+// 为每个current节点创建workInprogree节点
 // This is used to create an alternate fiber to do work on.
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
   let workInProgress = current.alternate;
@@ -268,12 +270,14 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     // node that we're free to reuse. This is lazily created to avoid allocating
     // extra objects for things that are never updated. It also allow us to
     // reclaim the extra memory if needed.
+    // 创建一个fiber节点
     workInProgress = createFiber(
       current.tag,
       pendingProps,
       current.key,
       current.mode,
     );
+    // 将 current fiber 的一些参数赋值给 workInProgress fiber
     workInProgress.elementType = current.elementType;
     workInProgress.type = current.type;
     workInProgress.stateNode = current.stateNode;
@@ -619,6 +623,7 @@ export function createFiberFromTypeAndProps(
     }
   }
 
+  // 创建fiber
   const fiber = createFiber(fiberTag, pendingProps, key, mode);
   fiber.elementType = type;
   fiber.type = resolvedType;
@@ -631,6 +636,9 @@ export function createFiberFromTypeAndProps(
   return fiber;
 }
 
+/**
+ * 通过ReactElement数据来创建一个Fiber节点
+ */
 export function createFiberFromElement(
   element: ReactElement,
   mode: TypeOfMode,

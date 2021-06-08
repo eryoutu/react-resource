@@ -15,5 +15,7 @@ export const NoFlags = /*  */ 0b000;
 export const HasEffect = /* */ 0b001;
 
 // Represents the phase in which the effect (not the clean-up) fires.
+// useLayoutEffect 对应的effect tag
 export const Layout = /*    */ 0b010;
+// useEffect 对应的effect tag
 export const Passive = /*   */ 0b100;

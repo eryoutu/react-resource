@@ -311,6 +311,7 @@ export function appendInitialChild(
   parentInstance.appendChild(child);
 }
 
+// 处理 props：为 DOM 节点设置属性
 export function finalizeInitialChildren(
   domElement: Instance,
   type: string,

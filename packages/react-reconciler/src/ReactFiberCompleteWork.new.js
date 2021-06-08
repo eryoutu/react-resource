@@ -193,6 +193,8 @@ let appendAllChildren;
 let updateHostContainer;
 let updateHostComponent;
 let updateHostText;
+
+// 是否支持 mutation : ReactDom 走的就是 mutation
 if (supportsMutation) {
   // Mutation mode
 
@@ -234,6 +236,7 @@ if (supportsMutation) {
   updateHostContainer = function(current: null | Fiber, workInProgress: Fiber) {
     // Noop
   };
+
   updateHostComponent = function(
     current: Fiber,
     workInProgress: Fiber,
@@ -260,6 +263,9 @@ if (supportsMutation) {
     // TODO: Experiencing an error where oldProps is null. Suggests a host
     // component is hitting the resume path. Figure out why. Possibly
     // related to `hidden`.
+    // 最终会调用 diffProperties，为workInProgress fiber赋值 updateQueue
+    // 被处理完的props会被赋值给workInProgress.updateQueue，并最终会在commit阶段被渲染在页面上。
+    // updatePayload为数组形式，他的偶数索引的值为变化的prop key，奇数索引的值为变化的prop value。
     const updatePayload = prepareUpdate(
       instance,
       type,
@@ -268,12 +274,11 @@ if (supportsMutation) {
       rootContainerInstance,
       currentHostContext,
     );
-    // 被处理完的props会被赋值给workInProgress.updateQueue，并最终会在commit阶段被渲染在页面上。
-    // updatePayload为数组形式，他的偶数索引的值为变化的prop key，奇数索引的值为变化的prop value。
     // TODO: Type this specific to this type of component.
     workInProgress.updateQueue = (updatePayload: any);
     // If the update payload indicates that there is a change or if there
     // is a new ref we mark this as an update. All the work is done in commitWork.
+    // 如果存在 updatePayload，给workInProgress.flag增加一个Update属性，表示DOM属性的更改
     if (updatePayload) {
       markUpdate(workInProgress);
     }
@@ -800,6 +805,7 @@ function completeWork(
 
   // 针对不同tag调用不同的处理逻辑
   switch (workInProgress.tag) {
+    // 有很多component是没有completeWork的逻辑的
     case IndeterminateComponent:
     case LazyComponent:
     case SimpleMemoComponent:
@@ -855,12 +861,14 @@ function completeWork(
       bubbleProperties(workInProgress);
       return null;
     }
+    // 如果是 HostComponent
     case HostComponent: {
       popHostContext(workInProgress);
       const rootContainerInstance = getRootHostContainer();
       const type = workInProgress.type;
       if (current !== null && workInProgress.stateNode != null) {
         // 判断update时我们还需要考虑 workInProgress.stateNode != null（即该Fiber节点是否存在对应的DOM节点）
+        // update 时：对比出props的变更，如果有变更，打上 Update 的tag
         updateHostComponent(
           current,
           workInProgress,
@@ -905,7 +913,7 @@ function completeWork(
             markUpdate(workInProgress);
           }
         } else {
-          // 为fiber创建对应DOM节点
+          // mounted时：为fiber创建对应DOM节点
           const instance = createInstance(
             type,
             newProps,
@@ -925,6 +933,8 @@ function completeWork(
           // (eg DOM renderer supports auto-focus for certain elements).
           // Make sure such renderers get scheduled for later work.
           // 与update逻辑中的updateHostComponent类似的处理props的过程
+          // （不类似呀？！mounte时是为DOM设置属性，update是为比对props的变更）
+          // mounted时：为DOM节点设置一些属性
           if (
             finalizeInitialChildren(
               instance,

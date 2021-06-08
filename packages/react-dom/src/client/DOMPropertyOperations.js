@@ -128,6 +128,7 @@ export function getValueForAttribute(
 
 /**
  * Sets the value for a property on a node.
+ * 设置DOM属性
  *
  * @param {DOMElement} node
  * @param {string} name
@@ -153,6 +154,7 @@ export function setValueForProperty(
       if (value === null) {
         node.removeAttribute(attributeName);
       } else {
+        // 执行DOM节点的setAttribute方法为属性赋值
         node.setAttribute(
           attributeName,
           enableTrustedTypesIntegration ? (value: any) : '' + (value: any),

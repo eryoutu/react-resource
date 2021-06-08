@@ -379,6 +379,7 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
         if (current !== null) {
           const prevProps = current.memoizedProps;
           const prevState = current.memoizedState;
+          // 拿到对应的ReactComponent实例
           const instance = finishedWork.stateNode;
           // We could update instance props and state here,
           // but instead we rely on them being set during last render.
@@ -410,6 +411,7 @@ function commitBeforeMutationEffectsOnFiber(finishedWork: Fiber) {
               }
             }
           }
+          // 类组件调用getSnapshotBeforeUpdate声明周期
           const snapshot = instance.getSnapshotBeforeUpdate(
             finishedWork.elementType === finishedWork.type
               ? prevProps
@@ -747,7 +749,6 @@ function commitLayoutEffectOnFiber(
           }
         }
 
-        // this.setState如果赋值了第二个参数回调函数，也会在此时调用
         // TODO: I think this is now always non-null by the time it reaches the
         // commit phase. Consider removing the type check.
         const updateQueue: UpdateQueue<
@@ -784,6 +785,7 @@ function commitLayoutEffectOnFiber(
           // We could update instance props and state here,
           // but instead we rely on them being set during last render.
           // TODO: revisit this when we implement resuming.
+          // this.setState如果赋值了第二个参数回调函数，也会在此时调用
           commitUpdateQueue(finishedWork, updateQueue, instance);
         }
         break;
@@ -791,7 +793,6 @@ function commitLayoutEffectOnFiber(
       case HostRoot: {
         // TODO: I think this is now always non-null by the time it reaches the
         // commit phase. Consider removing the type check.
-        // 即rootFiber，如果赋值了第三个参数回调函数，也会在此时调用
         const updateQueue: UpdateQueue<
           *,
         > | null = (finishedWork.updateQueue: any);
@@ -807,6 +808,7 @@ function commitLayoutEffectOnFiber(
                 break;
             }
           }
+          // ReactDOM.render如果赋值了第三个参数回调函数，也会在此时调用
           commitUpdateQueue(finishedWork, updateQueue, instance);
         }
         break;
@@ -1069,6 +1071,7 @@ function commitDetachRef(current: Fiber) {
 // User-originating errors (lifecycles and refs) should not interrupt
 // deletion, so don't let them throw. Host-originating errors should
 // interrupt deletion, so it's okay
+// 删除操作
 function commitUnmount(
   finishedRoot: FiberRoot,
   current: Fiber,
@@ -1082,7 +1085,7 @@ function commitUnmount(
     case ForwardRef:
     case MemoComponent:
     case SimpleMemoComponent: {
-      // 调度useEffect的销毁函数
+      // 调度useEffect的销毁函数，useLayout的销毁函数也在这里执行吗？
       const updateQueue: FunctionComponentUpdateQueue | null = (current.updateQueue: any);
       if (updateQueue !== null) {
         const lastEffect = updateQueue.lastEffect;
@@ -1312,6 +1315,9 @@ function getHostParentFiber(fiber: Fiber): Fiber {
   );
 }
 
+// host类型包含：
+// HostComponent、HostRoot、HostPortal（由React.createProtal创建）
+// 共同点是：它们都对应有dom节点
 function isHostParent(fiber: Fiber): boolean {
   return (
     fiber.tag === HostComponent ||
@@ -1368,10 +1374,12 @@ function getHostSibling(fiber: Fiber): ?Instance {
 
 // 该Fiber节点对应的DOM节点需要插入到页面中
 function commitPlacement(finishedWork: Fiber): void {
+  // ReactDom 环境下才支持 mutation
   if (!supportsMutation) {
     return;
   }
 
+  // 根据当前fiber节点，找到找到host类型的最近的parent fiber节点
   // Recursively insert all host nodes into the parent.
   const parentFiber = getHostParentFiber(finishedWork);
 
@@ -1401,6 +1409,7 @@ function commitPlacement(finishedWork: Fiber): void {
           'in React. Please file an issue.',
       );
   }
+  // 判断parentFiber是否存在ContentReset，存在就需要重置文本节点。
   if (parentFiber.flags & ContentReset) {
     // Reset the text content of the parent before doing any insertions
     resetTextContent(parent);
@@ -1408,7 +1417,8 @@ function commitPlacement(finishedWork: Fiber): void {
     parentFiber.flags &= ~ContentReset;
   }
 
-  // 获取Fiber节点的DOM兄弟节点
+  // 获取Fiber节点的host类型的兄弟DOM节点
+  // 双层循环哦！
   const before = getHostSibling(finishedWork);
   // We only have the top Fiber that was inserted but we need to recurse down its
   // children to find all the terminal nodes.
@@ -1430,6 +1440,7 @@ function insertOrAppendPlacementNodeIntoContainer(
   const isHost = tag === HostComponent || tag === HostText;
   if (isHost) {
     const stateNode = isHost ? node.stateNode : node.stateNode.instance;
+    // 根据DOM兄弟节点是否存在决定调用parentNode.insertBefore或parentNode.appendChild执行DOM插入操作
     if (before) {
       insertInContainerBefore(parent, stateNode, before);
     } else {
@@ -1461,6 +1472,7 @@ function insertOrAppendPlacementNode(
   const isHost = tag === HostComponent || tag === HostText;
   if (isHost) {
     const stateNode = isHost ? node.stateNode : node.stateNode.instance;
+    // 根据DOM兄弟节点是否存在决定调用parentNode.insertBefore或parentNode.appendChild执行DOM插入操作
     if (before) {
       insertBefore(parent, stateNode, before);
     } else {
@@ -1502,6 +1514,7 @@ function unmountHostComponents(
   let currentParentIsContainer;
 
   while (true) {
+    // 找到当前fiber节点的父级dom节点
     if (!currentParentIsValid) {
       let parent = node.return;
       findParent: while (true) {
@@ -1530,6 +1543,7 @@ function unmountHostComponents(
       currentParentIsValid = true;
     }
 
+    // 找到父级DOM节点后，嵌套执行unmount，递归对子树的fiber节点进行删除操作
     if (node.tag === HostComponent || node.tag === HostText) {
       commitNestedUnmounts(
         finishedRoot,
@@ -1776,6 +1790,7 @@ function commitWork(current: Fiber | null, finishedWork: Fiber): void {
         finishedWork.updateQueue = null;
         if (updatePayload !== null) {
           // 将render阶段 completeWork 中为Fiber节点赋值的updateQueue对应的内容渲染在页面上
+          // 最终调用updateProperties来更新dom的属性
           commitUpdate(
             instance,
             updatePayload,
@@ -2109,6 +2124,7 @@ function commitMutationEffectsOnFiber(
       // inserted, before any life-cycles like componentDidMount gets called.
       // TODO: findDOMNode doesn't rely on this any more but isMounted does
       // and isMounted is deprecated anyway so we should be able to kill this.
+      // 执行完commitPlacement后，节点已经插入到页面中，需要为当前fiber节点删除Placement的effectTag
       finishedWork.flags &= ~Placement;
       break;
     }

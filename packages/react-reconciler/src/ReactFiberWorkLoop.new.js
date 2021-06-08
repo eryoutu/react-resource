@@ -1474,6 +1474,7 @@ export function renderHasNotSuspendedYet(): boolean {
   return workInProgressRootExitStatus === RootIncomplete;
 }
 
+// render 阶段的起点
 // 为了工作fiber树（？？）创建第一个子fiber节点
 function renderRootSync(root: FiberRoot, lanes: Lanes) {
   const prevExecutionContext = executionContext;
@@ -1760,6 +1761,7 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
 function commitRoot(root) {
   const previousUpdateLanePriority = getCurrentUpdateLanePriority();
   try {
+    // 优先级相关
     setCurrentUpdateLanePriority(SyncLanePriority);
     commitRootImpl(root, previousUpdateLanePriority);
   } finally {
@@ -1779,8 +1781,10 @@ function commitRootImpl(root, renderPriorityLevel) {
     // TODO: Might be better if `flushPassiveEffects` did not automatically
     // flush synchronous work at the end, to avoid factoring hazards like this.
 
-    // 触发useEffect回调与其他同步任务。由于这些任务可能触发新的渲染，所以这里要一直遍历执行直到没有任务？？？
-    // 什么情况会走这个函数？？？
+    // 是否有还未执行的useEffect，如果有，那就执行它们。
+    // 触发useEffect回调与（其他同步任务？？）。
+    // 由于useEffect可能会setState触发新的更新，所以这里要一直遍历执行直到没有任务：rootWithPendingPassiveEffects===null
+    // 注意与useLayoutEffect中触发新的更新这种情况不同哦！
     flushPassiveEffects();
   } while (rootWithPendingPassiveEffects !== null);
   flushRenderPhaseStrictModeWarningsInDEV();
@@ -1845,7 +1849,9 @@ function commitRootImpl(root, renderPriorityLevel) {
   // Clear already finished discrete updates in case that a later call of
   // `flushDiscreteUpdates` starts a useless render pass which may cancels
   // a scheduled timeout.
-  // 清除已完成的discrete updates，例如：用户鼠标点击触发的更新
+  // 清除已完成的discrete updates，是离散的更新。是由离散的时间产生的。
+  // 例如：用户鼠标点击触发的更新
+  // 在离散的事件中，react需要处理光标的focus和blur的状态。
   if (rootsWithPendingDiscreteUpdates !== null) {
     if (
       !hasDiscreteLanes(remainingLanes) &&
@@ -1874,12 +1880,17 @@ function commitRootImpl(root, renderPriorityLevel) {
   // might get scheduled in the commit phase. (See #16714.)
   // TODO: Delete all other places that schedule the passive effect callback
   // They're redundant.
-  // 调度useEffect ？？？
+  // 如果当前节点的 effectTag 中包含了Passive，就是useEffect对应的effect Type
+  // 调度useEffect：
+  // 注意 flushPasiveEffects不是直接执行，而是作为scheduleCallback的一个回调函数来执行。
+  // scheduleCallback会以一个优先级来异步执行这个回调函数。useEffect会被以normal的优先级调度。
+  // 而整个commit阶段是同步执行的，所以useEffect回调的执行是指commit阶段结束以后异步执行的。
   if (
     (finishedWork.subtreeFlags & PassiveMask) !== NoFlags ||
     (finishedWork.flags & PassiveMask) !== NoFlags
   ) {
     if (!rootDoesHavePassiveEffects) {
+      // 当前更新存在useEffect回调
       rootDoesHavePassiveEffects = true;
       scheduleCallback(NormalSchedulerPriority, () => {
         flushPassiveEffects();
@@ -1893,6 +1904,7 @@ function commitRootImpl(root, renderPriorityLevel) {
   // to check for the existence of `firstEffect` to satsify Flow. I think the
   // only other reason this optimization exists is because it affects profiling.
   // Reconsider whether this is necessary.
+  // 判断是否存在effect tag
   const subtreeHasEffects =
     (finishedWork.subtreeFlags &
       (BeforeMutationMask | MutationMask | LayoutMask | PassiveMask)) !==
@@ -2015,6 +2027,7 @@ function commitRootImpl(root, renderPriorityLevel) {
   }
 
   /** ------layout 阶段之后的工作------ **/ 
+  // 本次更新是否存在useEffect的回调
   const rootDidHavePassiveEffects = rootDoesHavePassiveEffects;
 
   // useEffect相关
@@ -2022,6 +2035,9 @@ function commitRootImpl(root, renderPriorityLevel) {
     // This commit has passive effects. Stash a reference to them. But don't
     // schedule a callback until after flushing layout work.
     rootDoesHavePassiveEffects = false;
+    // 将rootWithPendingPassiveEffects这个全局变量会被赋值为整个应用的根结点root
+    // commit 阶段的起点会根据 rootWithPendingPassiveEffects 这个变量来 flushPassiveEffects
+    // 可是before mutation阶段不是调度了一次吗？这里又让下一次调度来flushPassiveEffects 干什么？两个有什么不一样？
     rootWithPendingPassiveEffects = root;
     pendingPassiveEffectsLanes = lanes;
     pendingPassiveEffectsRenderPriority =
@@ -2069,6 +2085,7 @@ function commitRootImpl(root, renderPriorityLevel) {
       // Otherwise, we'll wait until after the passive effects are flushed.
       // Wait to do this until after remaining work has been scheduled,
       // so that we don't prematurely signal complete for interactions when there's e.g. hidden work.
+      // 如果本次更新不存在useEffect调用，会遍历链表，将相应的遍历赋值为null，便于垃圾回收。
       finishPendingInteractions(root, lanes);
     }
   }
@@ -2081,6 +2098,7 @@ function commitRootImpl(root, renderPriorityLevel) {
 
     // Count the number of times the root synchronously re-renders without
     // finishing. If there are too many, it indicates an infinite update loop.
+    // 判断更新是不是一个无限循环的同步更新。如果是会抛出错误。
     if (root === rootWithNestedUpdates) {
       nestedUpdateCount++;
     } else {
@@ -2097,7 +2115,7 @@ function commitRootImpl(root, renderPriorityLevel) {
     onCommitRootTestSelector();
   }
 
-  // 在离开commitRoot函数前调用，触发一次新的调度，确保任何附加的任务被调度
+  // 由于在commit阶段可能会产生一些新的更新，在离开commitRoot函数前调用，将整个应用调度一次，确保任何附加的任务被调度。
   // Always call this before exiting `commitRoot`, to ensure that any
   // additional work on this root is scheduled.
   ensureRootIsScheduled(root, now());
@@ -2128,9 +2146,10 @@ function commitRootImpl(root, renderPriorityLevel) {
     return null;
   }
 
-  // 执行同步任务，这样同步任务不需要等到下次事件循环再执行
-  // 比如在 componentDidMount 、componentDidUpdate（或 useLayoutEffect） 中又执行 setState 创建的更新会在这里被同步执行
   // If layout work was scheduled, flush it now.
+  // 执行同步任务，这样同步任务不需要等到下次事件循环再执行
+  // 同步的更新放在syncCallQueue中，这个方法是执行这些任务。
+  // 比如在 componentDidMount 、componentDidUpdate（或 useLayoutEffect） 中又执行 setState 创建的更新会在这里被同步执行
   flushSyncCallbackQueue();
 
   if (__DEV__) {

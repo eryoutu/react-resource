@@ -279,6 +279,7 @@ function setInitialDOMProperties(
       continue;
     }
     const nextProp = nextProps[propKey];
+    // 设置 style
     if (propKey === STYLE) {
       if (__DEV__) {
         if (nextProp) {
@@ -295,6 +296,7 @@ function setInitialDOMProperties(
         setInnerHTML(domElement, nextHtml);
       }
     } else if (propKey === CHILDREN) {
+      // 设置 children 
       if (typeof nextProp === 'string') {
         // Avoid setting initial textContent when the text is empty. In IE11 setting
         // textContent on a <textarea> will cause the placeholder to not
@@ -327,6 +329,7 @@ function setInitialDOMProperties(
         }
       }
     } else if (nextProp != null) {
+      // 设置属性
       setValueForProperty(domElement, propKey, nextProp, isCustomComponentTag);
     }
   }
@@ -474,12 +477,14 @@ export function createTextNode(
   );
 }
 
+// 为 DOM 节点设置属性
 export function setInitialProperties(
   domElement: Element,
   tag: string,
   rawProps: Object,
   rootContainerElement: Element | Document,
 ): void {
+  // 判断是不是自定义标签
   const isCustomComponentTag = isCustomComponent(tag, rawProps);
   if (__DEV__) {
     validatePropertiesInDevelopment(tag, rawProps);
@@ -560,8 +565,10 @@ export function setInitialProperties(
       props = rawProps;
   }
 
+  // 判断props是否合法
   assertValidProps(tag, props);
 
+  // 初始化dom属性
   setInitialDOMProperties(
     tag,
     domElement,
@@ -612,8 +619,12 @@ export function diffProperties(
 
   let updatePayload: null | Array<any> = null;
 
+  // 本次更新开始前的props属性
   let lastProps: Object;
+  // 本次更新需要改变的props
   let nextProps: Object;
+
+  // 根据tag不同，进入不同的case
   switch (tag) {
     case 'input':
       lastProps = ReactDOMInputGetHostProps(domElement, lastRawProps);
@@ -648,11 +659,13 @@ export function diffProperties(
       break;
   }
 
+  // 判断属性的合法性assertValidProps
   assertValidProps(tag, nextProps);
 
   let propKey;
   let styleName;
   let styleUpdates = null;
+  // 遍历 lastProps：对应 props 删除的情况
   for (propKey in lastProps) {
     if (
       nextProps.hasOwnProperty(propKey) ||
@@ -693,6 +706,7 @@ export function diffProperties(
       (updatePayload = updatePayload || []).push(propKey, null);
     }
   }
+  // 遍历nextProps——对应prop更新、新增的情况
   for (propKey in nextProps) {
     const nextProp = nextProps[propKey];
     const lastProp = lastProps != null ? lastProps[propKey] : undefined;

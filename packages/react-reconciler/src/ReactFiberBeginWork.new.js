@@ -251,6 +251,7 @@ if (__DEV__) {
   didWarnAboutDefaultPropsOnFunctionComponent = {};
 }
 
+// 得到子fiber节点 —— workInProgress.child
 export function reconcileChildren(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -279,6 +280,7 @@ export function reconcileChildren(
     // update 时
     // reconcileChildFibers与mountChildFibers这两个方法的逻辑基本一致
     // 唯一的区别是：reconcileChildFibers会为生成的Fiber节点带上effectTag属性
+    // mounte 时，rootFiber会走这个逻辑，打上 Placement 的 effect Tag ？？？
     workInProgress.child = reconcileChildFibers(
       workInProgress,
       current.child,
@@ -928,6 +930,7 @@ function updateFunctionComponent(
     }
     setIsRendering(false);
   } else {
+    // 执行 Component 函数，得到 React Element
     nextChildren = renderWithHooks(
       current,
       workInProgress,
@@ -1188,6 +1191,7 @@ function updateHostRoot(current, workInProgress, renderLanes) {
     resetHydrationState();
     return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
   }
+  // hydrate 与 SSR 有关
   if (root.hydrate && enterHydrationState(workInProgress)) {
     // If we don't have any current children this might be the first pass.
     // We always try to hydrate. If this isn't a hydration pass there won't
@@ -1254,6 +1258,7 @@ function updateHostComponent(
   let nextChildren = nextProps.children;
   const isDirectTextChild = shouldSetTextContent(type, nextProps);
 
+  // 对于只有唯一子节点为一个文本节点的标签，react做出了优化：这种文本节点不会生成自己的fiber节点。
   if (isDirectTextChild) {
     // We special case a direct text child of a host node. This is a common
     // case. We won't handle it as a reified child. We will instead handle
@@ -3275,10 +3280,10 @@ function beginWork(
     const oldProps = current.memoizedProps;
     const newProps = workInProgress.pendingProps;
 
-    // didReceiveUpdate === false 时即可以直接复用前一次更新的子Fiber
+    // didReceiveUpdate === false ：代表在本次更新中，当前fiber节点无变化。即可以直接复用前一次更新的子Fiber
     // 需满足的条件：
     // 1. props、context、fiber.type不变
-    // 2. 当前节点优先级不够
+    // 2. 当前节点优先级不够：本次更新在当前fiber上是否有要进行的任务（无则走bailout逻辑）
     if (
       oldProps !== newProps ||
       hasLegacyContextChanged() ||
@@ -3525,7 +3530,8 @@ function beginWork(
   // move this assignment out of the common path and into each branch.
   workInProgress.lanes = NoLanes;
 
-  // mount时：根据tag不同，创建不同的子Fiber节点
+  // 根据tag不同进入不同的case，创建它们的子Fiber节点
+  // mounte 时，创建子fiber节点；update 时，进行diff算法，生成带 effect tag 的子fiber节点
   switch (workInProgress.tag) {
     case IndeterminateComponent: {
       return mountIndeterminateComponent(
@@ -3575,6 +3581,7 @@ function beginWork(
         renderLanes,
       );
     }
+    // rootFiber
     case HostRoot:
       return updateHostRoot(current, workInProgress, renderLanes);
     case HostComponent:

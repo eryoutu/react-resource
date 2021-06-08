@@ -258,6 +258,10 @@ function resolveLazy(lazyType) {
 // to be able to optimize each path individually by branching early. This needs
 // a compiler or we can do it manually. Helpers that don't need this branching
 // live outside of this function.
+/**
+ * 
+ * @param {boolean} shouldTrackSideEffects 是否追踪副作用。如果追踪副作用，最终会给fiber节点的effectTag添加对应tag（即update阶段时）。
+ */
 function ChildReconciler(shouldTrackSideEffects) {
   function deleteChild(returnFiber: Fiber, childToDelete: Fiber): void {
     if (!shouldTrackSideEffects) {
@@ -353,6 +357,8 @@ function ChildReconciler(shouldTrackSideEffects) {
   function placeSingleChild(newFiber: Fiber): Fiber {
     // This is simpler for the single child case. We only need to do a
     // placement for inserting new children.
+    // 赋值 Placement effect
+    // 如果要判断 newFiber.alternate === null ，那rootFiber怎么能打上Placement effectTag？
     if (shouldTrackSideEffects && newFiber.alternate === null) {
       newFiber.flags |= Placement;
     }
@@ -1210,6 +1216,7 @@ function ChildReconciler(shouldTrackSideEffects) {
   // This API will tag the children with the side-effect of the reconciliation
   // itself. They will be added to the side-effect list as we pass through the
   // children and the parent.
+  // 关键函数
   function reconcileChildFibers(
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
@@ -1238,6 +1245,7 @@ function ChildReconciler(shouldTrackSideEffects) {
 
     if (isObject) {
       switch (newChild.$$typeof) {
+        // 单一的React Element来处理
         case REACT_ELEMENT_TYPE:
           return placeSingleChild(
             reconcileSingleElement(
@@ -1271,6 +1279,7 @@ function ChildReconciler(shouldTrackSideEffects) {
       }
     }
 
+    // 如果是 string 或者 number，就会被当作文本节点处理
     if (typeof newChild === 'string' || typeof newChild === 'number') {
       return placeSingleChild(
         reconcileSingleTextNode(
@@ -1282,6 +1291,8 @@ function ChildReconciler(shouldTrackSideEffects) {
       );
     }
 
+    // 如果是含有多个子节点的fiber节点
+    // 注意：每次执行的结果也最终都只会生成一个子fiber节点，其他节点只是通过sibling连接
     if (isArray(newChild)) {
       return reconcileChildrenArray(
         returnFiber,
@@ -1291,6 +1302,8 @@ function ChildReconciler(shouldTrackSideEffects) {
       );
     }
 
+    // 如果是函数式组件
+    // 该组件是否存在需要调用的useEffect，存在则对应的fiber节点会被打上 Passive effect 的effectTag。？？？？
     if (getIteratorFn(newChild)) {
       return reconcileChildrenIterator(
         returnFiber,
@@ -1347,6 +1360,8 @@ function ChildReconciler(shouldTrackSideEffects) {
   return reconcileChildFibers;
 }
 
+// 基于当前的workInProgress fiber节点对应的current fiber节点，以及子fiber节点对应的jsx对象，
+// （进行diff算法）最终得到workInProgress fiber的 子 fiber 节点
 export const reconcileChildFibers = ChildReconciler(true);
 export const mountChildFibers = ChildReconciler(false);
 
@@ -1368,6 +1383,7 @@ export function cloneChildFibers(
   // workInProgress 指的是上一次更新的fiber树中对应的节点。？？
   // 这时，这两个节点有alterlate连起来吗？不是，更新时，这里一直走的workInProgress（也就是current）为null的逻辑。
   let currentChild = workInProgress.child;
+  // 返回一个workInprogress Fiber节点（克隆一个子fiber），作为当前Fiber节点的子节点
   let newChild = createWorkInProgress(currentChild, currentChild.pendingProps);
   workInProgress.child = newChild;
 
