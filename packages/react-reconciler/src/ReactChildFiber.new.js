@@ -261,6 +261,7 @@ function resolveLazy(lazyType) {
 /**
  * 
  * @param {boolean} shouldTrackSideEffects 是否追踪副作用。如果追踪副作用，最终会给fiber节点的effectTag添加对应tag（即update阶段时）。
+ * 什么情况下不追踪副作用？
  */
 function ChildReconciler(shouldTrackSideEffects) {
   function deleteChild(returnFiber: Fiber, childToDelete: Fiber): void {
@@ -336,6 +337,7 @@ function ChildReconciler(shouldTrackSideEffects) {
       // Noop.
       return lastPlacedIndex;
     }
+    // 新创建的fiber有没有alternate来区分新生成fiber是不是复用的
     const current = newFiber.alternate;
     if (current !== null) {
       const oldIndex = current.index;
@@ -343,6 +345,7 @@ function ChildReconciler(shouldTrackSideEffects) {
         // This is a move.
         // 标记为右移
         // 右移为啥是标记 Placement？
+        // 说明需要把这个fiber挪到后面。所以就需要赋值placement
         newFiber.flags |= Placement;
         return lastPlacedIndex;
       } else {
@@ -774,13 +777,19 @@ function ChildReconciler(shouldTrackSideEffects) {
       }
     }
 
+    // 最终返回的workInprogress fiber
     let resultingFirstChild: Fiber | null = null;
+    // 中间变量，为的是将新生成的fiber连成一个链表
     let previousNewFiber: Fiber | null = null;
 
+    // 当前遍历到的那个currentFiber
     let oldFiber = currentFirstChild;
+    // 新创建的fiber节点，对应的dom节点在页面中的索引位置。（最后的插入位置）【重要！】
     let lastPlacedIndex = 0;
+    // 当前遍历到的jsx对象的索引
     let newIdx = 0;
     let nextOldFiber = null;
+
     // ---------- 第一轮遍历：遍历 newChildren ----------
     for (; oldFiber !== null && newIdx < newChildren.length; newIdx++) {
       if (oldFiber.index > newIdx) {
@@ -789,6 +798,7 @@ function ChildReconciler(shouldTrackSideEffects) {
       } else {
         nextOldFiber = oldFiber.sibling;
       }
+      // 用来判断是否需要新建一个fiber
       const newFiber = updateSlot(
         returnFiber,
         oldFiber,
@@ -813,6 +823,7 @@ function ChildReconciler(shouldTrackSideEffects) {
           deleteChild(returnFiber, oldFiber);
         }
       }
+      // 为新的fiber节点，赋值一个placement的effect tag，之后会插入到dom中
       lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
       if (previousNewFiber === null) {
         // TODO: Move out of the loop. This only happens for the first run.
@@ -881,6 +892,7 @@ function ChildReconciler(shouldTrackSideEffects) {
             // it from the child list so that we don't add it to the deletion
             // list.
             // 这里为啥要删除？
+            // 复用完后，删除map中对应的old fiber
             existingChildren.delete(
               newFiber.key === null ? newIdx : newFiber.key,
             );
@@ -896,6 +908,7 @@ function ChildReconciler(shouldTrackSideEffects) {
       }
     }
 
+    // 最终newChildren遍历完后 ，再遍历一下保存oldFiber的map，如果还有值，就标志为删除。
     if (shouldTrackSideEffects) {
       // Any existing children that weren't consumed above were deleted. We need
       // to add them to the deletion list.
@@ -1115,10 +1128,10 @@ function ChildReconciler(shouldTrackSideEffects) {
   }
 
   function reconcileSingleElement(
-    returnFiber: Fiber,
+    returnFiber: Fiber, // currentFiber的父级节点，它的firstChild为currentFiber
     currentFirstChild: Fiber | null,
-    element: ReactElement,
-    lanes: Lanes,
+    element: ReactElement, // jsx对象
+    lanes: Lanes, // 优先级相关
   ): Fiber {
     const key = element.key;
     let child = currentFirstChild;
@@ -1146,7 +1159,6 @@ function ChildReconciler(shouldTrackSideEffects) {
           }
         } else {
           // type相同则表示可以复用
-          // 返回复用的fiber
           if (
             child.elementType === elementType ||
             // Keep this check inline so it only runs on the false path:
@@ -1166,6 +1178,7 @@ function ChildReconciler(shouldTrackSideEffects) {
             // 因为是单节点，所有旧fiber的其他兄弟节点都可以删除了。
             deleteRemainingChildren(returnFiber, child.sibling);
             // 将上次更新的fiber节点作为副本，本次新生成fiber节点
+            // 内部会调用createWorkInProgress，通过currentFiber克隆出来的一个fiber
             const existing = useFiber(child, element.props);
             existing.ref = coerceRef(returnFiber, child, element);
             existing.return = returnFiber;
@@ -1173,7 +1186,7 @@ function ChildReconciler(shouldTrackSideEffects) {
               existing._debugSource = element._source;
               existing._debugOwner = element._owner;
             }
-            // 直接返回
+            // 直接返回返回复用的fiber
             return existing;
           }
         }
@@ -1186,6 +1199,8 @@ function ChildReconciler(shouldTrackSideEffects) {
         // key不同，将该fiber标记为删除。因为fiber的兄弟可能是同一个key。
         deleteChild(returnFiber, child);
       }
+      // 继续 while 循环，处理 currentFiber 有多个子节点的情形
+		  // 本次更新只有一个子节点，所以会进入单节点的逻辑, 所以才会有上面删除兄弟节点的操作
       child = child.sibling;
     }
 
