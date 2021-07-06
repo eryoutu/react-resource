@@ -618,6 +618,7 @@ export function scheduleUpdateOnFiber(
 // work without treating it as a typical update that originates from an event;
 // e.g. retrying a Suspense boundary isn't an update, but it does schedule work
 // on a fiber.
+// 从触发状态更新的fiber得到rootFiber
 function markUpdateLaneFromFiberToRoot(
   sourceFiber: Fiber,
   lane: Lane,
@@ -637,9 +638,11 @@ function markUpdateLaneFromFiberToRoot(
     }
   }
   // Walk the parent path to the root and update the child lanes.
+  // 从触发状态更新的fiber一直向上遍历到rootFiber，并返回rootFiber。
   let node = sourceFiber;
   let parent = sourceFiber.return;
   while (parent !== null) {
+    // 由于不同更新优先级不尽相同，所以过程中还会更新遍历到的fiber的优先级。
     parent.childLanes = mergeLanes(parent.childLanes, lane);
     alternate = parent.alternate;
     if (alternate !== null) {
@@ -683,6 +686,7 @@ export function isInterleavedUpdate(fiber: Fiber, lane: Lane) {
 // of the existing task is the same as the priority of the next level that the
 // root has work on. This function is called on every update, and right before
 // exiting a task.
+// 调度更新：根据更新的优先级，决定以同步还是异步的方式调度本次更新
 function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
   const existingCallbackNode = root.callbackNode;
 
@@ -735,10 +739,12 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
   }
 
   // Schedule a new callback.
+  // scheduleCallback 和 scheduleSyncCallback 会调用Scheduler提供的调度方法根据优先级调度回调函数执行。
   let newCallbackNode;
   if (newCallbackPriority === SyncLanePriority) {
     // Special case: Sync React callbacks are scheduled on a special
     // internal queue
+    // 任务已经过期，需要同步执行render阶段
     scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root));
     newCallbackNode = null;
   } else if (newCallbackPriority === SyncBatchedLanePriority) {
@@ -753,6 +759,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
     scheduleMicrotask(performSyncWorkOnRoot.bind(null, root));
     newCallbackNode = null;
   } else {
+    // 根据任务优先级异步执行render阶段
     const schedulerPriorityLevel = lanePriorityToSchedulerPriority(
       newCallbackPriority,
     );

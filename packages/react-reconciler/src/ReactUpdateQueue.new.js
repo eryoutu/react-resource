@@ -163,6 +163,7 @@ if (__DEV__) {
   };
 }
 
+// 初始化 updateQueue 结构
 export function initializeUpdateQueue<State>(fiber: Fiber): void {
   const queue: UpdateQueue<State> = {
     baseState: fiber.memoizedState,
@@ -211,6 +212,7 @@ export function createUpdate(eventTime: number, lane: Lane): Update<*> {
   return update;
 }
 
+// 将 update 插到 fiber.updateQueue 的环状列表上
 export function enqueueUpdate<State>(
   fiber: Fiber,
   update: Update<State>,
@@ -238,6 +240,8 @@ export function enqueueUpdate<State>(
     }
     sharedQueue.interleaved = update;
   } else {
+    // 环状链表的连接
+    // u4《——u3《——u2《——u1
     const pending = sharedQueue.pending;
     if (pending === null) {
       // This is the first update. Create a circular list.
@@ -455,6 +459,7 @@ function getStateFromUpdate<State>(
   return prevState;
 }
 
+// 计算新的state，即memoizedState
 export function processUpdateQueue<State>(
   workInProgress: Fiber,
   props: any,
@@ -478,6 +483,7 @@ export function processUpdateQueue<State>(
   if (pendingQueue !== null) {
     queue.shared.pending = null;
 
+    // 将 shared.pending 的环剪开连接在workInProgress updateQueue上
     // The pending queue is circular. Disconnect the pointer between first
     // and last so that it's non-circular.
     const lastPendingUpdate = pendingQueue;
@@ -496,6 +502,8 @@ export function processUpdateQueue<State>(
     // queue is a singly-linked list with no cycles, we can append to both
     // lists and take advantage of structural sharing.
     // TODO: Pass `current` as argument
+    // shared.pending的环被剪开后，也被连接在current updateQueue上
+    // 当render阶段被中断后重新开始时，updateQueue 所以不会丢失。
     const current = workInProgress.alternate;
     if (current !== null) {
       // This is always non-null on a ClassComponent or HostRoot
@@ -532,6 +540,7 @@ export function processUpdateQueue<State>(
         // Priority is insufficient. Skip this update. If this is the first
         // skipped update, the previous update/state is the new base
         // update/state.
+        // 跳过低优先级的更新
         const clone: Update<State> = {
           eventTime: updateEventTime,
           lane: updateLane,

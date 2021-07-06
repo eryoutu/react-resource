@@ -56,16 +56,22 @@ if (enableSchedulerTracing) {
 export type SchedulerCallback = (isSync: boolean) => SchedulerCallback | null;
 
 type SchedulerCallbackOptions = {timeout?: number, ...};
-
+// 优先级的定义
 // Except for NoPriority, these correspond to Scheduler priorities. We use
 // ascending numbers so we can compare them like numbers. They start at 90 to
 // avoid clashing with Scheduler's priorities.
+// 立刻执行的优先级，也就是同步的优先级。在react中是最高的优先级？？数据越大，优先级越高？
 export const ImmediatePriority: ReactPriorityLevel = 99;
+// 由用户触发的更新
 export const UserBlockingPriority: ReactPriorityLevel = 98;
+// 一般的优先级，最常见的，比如请求服务，在数据返回时，更新状态
 export const NormalPriority: ReactPriorityLevel = 97;
+// 低优先级，suspense
 export const LowPriority: ReactPriorityLevel = 96;
+// 空闲的优先级
 export const IdlePriority: ReactPriorityLevel = 95;
 // NoPriority is the absence of priority. Also React-only.
+// 初始化时的无优先级
 export const NoPriority: ReactPriorityLevel = 90;
 
 // 判断当前浏览器帧是否有剩余时间

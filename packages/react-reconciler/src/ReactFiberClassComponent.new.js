@@ -201,13 +201,19 @@ export function applyDerivedStateFromProps(
 
 const classComponentUpdater = {
   isMounted,
+  // this.setState 会调用
   enqueueSetState(inst, payload, callback) {
+    // 通过组件实例获取对应fiber
     const fiber = getInstance(inst);
     const eventTime = requestEventTime();
+    // 获取优先级
     const lane = requestUpdateLane(fiber);
 
+    // 创建update
     const update = createUpdate(eventTime, lane);
+    // 赋值payload
     update.payload = payload;
+    // 赋值回调函数
     if (callback !== undefined && callback !== null) {
       if (__DEV__) {
         warnOnInvalidCallback(callback, 'setState');
@@ -215,7 +221,9 @@ const classComponentUpdater = {
       update.callback = callback;
     }
 
+    // 将update插入updateQueue
     enqueueUpdate(fiber, update, lane);
+    // 调度update
     const root = scheduleUpdateOnFiber(fiber, lane, eventTime);
     if (root !== null) {
       entangleTransitions(root, fiber, lane);
@@ -269,12 +277,15 @@ const classComponentUpdater = {
       markStateUpdateScheduled(fiber, lane);
     }
   },
+  
+  // this.forceUpdate 会使用
   enqueueForceUpdate(inst, callback) {
     const fiber = getInstance(inst);
     const eventTime = requestEventTime();
     const lane = requestUpdateLane(fiber);
 
     const update = createUpdate(eventTime, lane);
+    // 赋值tag为ForceUpdate
     update.tag = ForceUpdate;
 
     if (callback !== undefined && callback !== null) {
@@ -330,6 +341,7 @@ function checkShouldComponentUpdate(
         }
       }
     }
+    // 内部会调用shouldComponentUpdate方法。
     const shouldUpdate = instance.shouldComponentUpdate(
       newProps,
       newState,
@@ -349,6 +361,7 @@ function checkShouldComponentUpdate(
     return shouldUpdate;
   }
 
+  // 当该ClassComponent为PureComponent时会浅比较state与props。
   if (ctor.prototype && ctor.prototype.isPureReactComponent) {
     return (
       !shallowEqual(oldProps, newProps) || !shallowEqual(oldState, newState)
@@ -1191,7 +1204,9 @@ function updateClassInstance(
   }
 
   const shouldUpdate =
+    // 判断本次更新的Update是否为ForceUpdate
     checkHasForceUpdateAfterProcessing() ||
+    // 判断本次是否更新
     checkShouldComponentUpdate(
       workInProgress,
       ctor,

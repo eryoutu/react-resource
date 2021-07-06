@@ -315,11 +315,14 @@ export function updateContainer(
     }
   }
 
+  // 创建update
   const update = createUpdate(eventTime, lane);
   // Caution: React DevTools currently depends on this property
   // being called "element".
+  // update.payload为需要挂载在根节点的组件
   update.payload = {element};
 
+  // callback为ReactDOM.render的第三个参数 —— 回调函数
   callback = callback === undefined ? null : callback;
   if (callback !== null) {
     if (__DEV__) {
@@ -334,7 +337,9 @@ export function updateContainer(
     update.callback = callback;
   }
 
+  // 将生成的update加入updateQueue
   enqueueUpdate(current, update, lane);
+  // 调度更新
   const root = scheduleUpdateOnFiber(current, lane, eventTime);
   if (root !== null) {
     entangleTransitions(root, current, lane);
@@ -453,6 +458,9 @@ export function attemptHydrationAtCurrentPriority(fiber: Fiber): void {
   markRetryLaneIfNotHydrated(fiber, lane);
 }
 
+// 调度任务
+// 接收一个优先级常量与一个回调函数作为参数。回调函数会以优先级高低为顺序排列在一个定时器中并在合适的时间触发。
+// 对于更新来讲，传递的回调函数一般为render阶段的入口函数
 export function runWithPriority<T>(priority: LanePriority, fn: () => T) {
   const previousPriority = getCurrentUpdateLanePriority();
   try {
