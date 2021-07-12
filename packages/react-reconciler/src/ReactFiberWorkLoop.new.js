@@ -2182,6 +2182,7 @@ export function flushPassiveEffects(): boolean {
     pendingPassiveEffectsRenderPriority = NoLanePriority;
     const previousLanePriority = getCurrentUpdateLanePriority();
     try {
+      // 设置优先级
       setCurrentUpdateLanePriority(priorityLevel);
       return flushPassiveEffectsImpl();
     } finally {
@@ -2238,7 +2239,9 @@ function flushPassiveEffectsImpl() {
   executionContext |= CommitContext;
   const prevInteractions = pushInteractions(root);
 
+  // 调用该useEffect在上一次render时的销毁函数
   commitPassiveUnmountEffects(root.current);
+  // 调用该useEffect在本次render时的回调函数
   commitPassiveMountEffects(root, root.current);
 
   // TODO: Move to commitPassiveMountEffects
@@ -2275,7 +2278,8 @@ function flushPassiveEffectsImpl() {
   }
 
   executionContext = prevExecutionContext;
-
+  
+  // 如果存在同步任务，不需要等待下次事件循环的宏任务，提前执行它？？？？
   flushSyncCallbackQueue();
 
   // If additional passive effects were scheduled, increment a counter. If this

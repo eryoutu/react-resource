@@ -345,6 +345,7 @@ function areHookInputsEqual(
   return true;
 }
 
+// FunctionComponent 进入 render 阶段的 beginWork 时调用
 export function renderWithHooks<Props, SecondArg>(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -398,12 +399,14 @@ export function renderWithHooks<Props, SecondArg>(
       ReactCurrentDispatcher.current = HooksDispatcherOnMountInDEV;
     }
   } else {
+    // 区分mount与update,并将不同情况对应的dispatcher赋值给全局变量ReactCurrentDispatcher的current属性。
     ReactCurrentDispatcher.current =
       current === null || current.memoizedState === null
         ? HooksDispatcherOnMount
         : HooksDispatcherOnUpdate;
   }
 
+  // 对于ForwardRef，secondArg为传递下去的ref
   let children = Component(props, secondArg);
 
   // Check if there was a render phase update
@@ -447,6 +450,7 @@ export function renderWithHooks<Props, SecondArg>(
 
   // We can assume the previous dispatcher is always this one, since we set it
   // at the beginning of the render phase and there's no re-entrancy.
+  // 假如出现了在useEffect嵌套使用了useState，此时就会指向该上下文，抛出错误
   ReactCurrentDispatcher.current = ContextOnlyDispatcher;
 
   if (__DEV__) {
@@ -585,6 +589,7 @@ export function resetHooksAfterThrow(): void {
   didScheduleRenderPhaseUpdateDuringThisPass = false;
 }
 
+// mount 阶段获取当前 hook
 function mountWorkInProgressHook(): Hook {
   const hook: Hook = {
     memoizedState: null,
@@ -598,6 +603,7 @@ function mountWorkInProgressHook(): Hook {
 
   if (workInProgressHook === null) {
     // This is the first hook in the list
+    // 没有就新建
     currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
   } else {
     // Append to the end of the list
@@ -606,6 +612,7 @@ function mountWorkInProgressHook(): Hook {
   return workInProgressHook;
 }
 
+// update 阶段获取当前 hook
 function updateWorkInProgressHook(): Hook {
   // This function is used both for updates and for re-renders triggered by a
   // render phase update. It assumes there is either a current hook we can
@@ -673,17 +680,22 @@ function createFunctionComponentUpdateQueue(): FunctionComponentUpdateQueue {
   };
 }
 
+// useState 使用的 reducer
 function basicStateReducer<S>(state: S, action: BasicStateAction<S>): S {
   // $FlowFixMe: Flow doesn't like mixed types
   return typeof action === 'function' ? action(state) : action;
 }
 
+// mounte 时，执行 useReducer
 function mountReducer<S, I, A>(
   reducer: (S, A) => S,
   initialArg: I,
   init?: I => S,
 ): [S, Dispatch<A>] {
+  // 创建并返回当前的hook
   const hook = mountWorkInProgressHook();
+
+  // 赋值初始state
   let initialState;
   if (init !== undefined) {
     initialState = init(initialArg);
@@ -691,6 +703,8 @@ function mountReducer<S, I, A>(
     initialState = ((initialArg: any): S);
   }
   hook.memoizedState = hook.baseState = initialState;
+
+  // 创建queue
   const queue = (hook.queue = {
     pending: null,
     interleaved: null,
@@ -699,19 +713,24 @@ function mountReducer<S, I, A>(
     lastRenderedReducer: reducer,
     lastRenderedState: (initialState: any),
   });
+
+  // 创建dispatch
   const dispatch: Dispatch<A> = (queue.dispatch = (dispatchAction.bind(
     null,
     currentlyRenderingFiber,
     queue,
   ): any));
+
   return [hook.memoizedState, dispatch];
 }
 
+// update 时，执行 useReducer
 function updateReducer<S, I, A>(
   reducer: (S, A) => S,
   initialArg: I,
   init?: I => S,
 ): [S, Dispatch<A>] {
+  // 获取当前hook
   const hook = updateWorkInProgressHook();
   const queue = hook.queue;
   invariant(
@@ -721,6 +740,8 @@ function updateReducer<S, I, A>(
 
   queue.lastRenderedReducer = reducer;
 
+  // 同HostRoot和ClassComponent类似的updateQueue更新逻辑:
+  // 剪断pendingQueue，接在baseQueue上，依次执行update的action，计算新的state
   const current: Hook = (currentHook: any);
 
   // The last rebase update that is NOT part of the base state.
@@ -809,6 +830,7 @@ function updateReducer<S, I, A>(
         if (update.eagerReducer === reducer) {
           // If this update was processed eagerly, and its reducer matches the
           // current reducer, we can use the eagerly computed state.
+          // 直接使用在调用阶段计算好的 eagerState
           newState = ((update.eagerState: any): S);
         } else {
           const action = update.action;
@@ -1232,23 +1254,35 @@ function updateMutableSource<Source, Snapshot>(
   return useMutableSource(hook, source, getSnapshot, subscribe);
 }
 
+// mount时，useState 调用
 function mountState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
+  // 创建当前 hook
   const hook = mountWorkInProgressHook();
+
+  // 赋值初始state
   if (typeof initialState === 'function') {
     // $FlowFixMe: Flow doesn't like mixed types
     initialState = initialState();
   }
   hook.memoizedState = hook.baseState = initialState;
+
+  // 创建queue
   const queue = (hook.queue = {
+    // 保存 update 对象
     pending: null,
     interleaved: null,
     lanes: NoLanes,
+    // 保存dispatchAction.bind()的值
     dispatch: null,
+    // 上一次render时使用的reducer
     lastRenderedReducer: basicStateReducer,
+    // 上一次render时的state
     lastRenderedState: (initialState: any),
   });
+
+  // 创建dispatch
   const dispatch: Dispatch<
     BasicStateAction<S>,
   > = (queue.dispatch = (dispatchAction.bind(
@@ -1256,12 +1290,15 @@ function mountState<S>(
     currentlyRenderingFiber,
     queue,
   ): any));
+
   return [hook.memoizedState, dispatch];
 }
 
+// update时，useState 调用
 function updateState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
+  // 最终还是调用updateReducer
   return updateReducer(basicStateReducer, (initialState: any));
 }
 
@@ -1272,6 +1309,7 @@ function rerenderState<S>(
 }
 
 function pushEffect(tag, create, destroy, deps) {
+  // 副作用数据结构，以链表相连
   const effect: Effect = {
     tag,
     create,
@@ -1283,6 +1321,7 @@ function pushEffect(tag, create, destroy, deps) {
   let componentUpdateQueue: null | FunctionComponentUpdateQueue = (currentlyRenderingFiber.updateQueue: any);
   if (componentUpdateQueue === null) {
     componentUpdateQueue = createFunctionComponentUpdateQueue();
+    // effect链表同时会保存在fiber.updateQueue中
     currentlyRenderingFiber.updateQueue = (componentUpdateQueue: any);
     componentUpdateQueue.lastEffect = effect.next = effect;
   } else {
@@ -1316,6 +1355,7 @@ function getCallerStackFrame(): string {
 }
 
 function mountRef<T>(initialValue: T): {|current: T|} {
+  // 获取当前useRef hook
   const hook = mountWorkInProgressHook();
   if (enableUseRefAccessWarning) {
     if (__DEV__) {
@@ -1381,6 +1421,7 @@ function mountRef<T>(initialValue: T): {|current: T|} {
       return ref;
     }
   } else {
+    // 创建ref
     const ref = {current: initialValue};
     hook.memoizedState = ref;
     return ref;
@@ -1388,7 +1429,9 @@ function mountRef<T>(initialValue: T): {|current: T|} {
 }
 
 function updateRef<T>(initialValue: T): {|current: T|} {
+  // 获取当前useRef hook
   const hook = updateWorkInProgressHook();
+  // 返回保存的数据
   return hook.memoizedState;
 }
 
@@ -1411,9 +1454,15 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps): void {
 
   if (currentHook !== null) {
     const prevEffect = currentHook.memoizedState;
+    // 上一次更新的销毁函数
     destroy = prevEffect.destroy;
     if (nextDeps !== null) {
       const prevDeps = prevEffect.deps;
+      // 上一次的deps和这一次的deps浅比较是否相等（object.is）
+      // 这时为什么还要pushEffect呢？
+      // 因为hooks的调用顺序是不能改变的。确保整个hooks的环状列表在更新前后都是能对应上的。
+      // 对于一个FuctionComponent，在它的内部包含了所有的hooks。useEffect的hooks产生的effect也是保存在一条环状的单向列表上的。所以即使不会调用useEffect 的回调函数，也要push一个effect。
+      // ????
       if (areHookInputsEqual(nextDeps, prevDeps)) {
         hook.memoizedState = pushEffect(hookFlags, create, destroy, nextDeps);
         return;
@@ -1423,6 +1472,7 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps): void {
 
   currentlyRenderingFiber.flags |= fiberFlags;
 
+  // 只有在包含了HooksHasEffect这个flag的情况，这个effect才会被本次commit执行
   hook.memoizedState = pushEffect(
     HookHasEffect | hookFlags,
     create,
@@ -1898,9 +1948,10 @@ function refreshCache<T>(fiber: Fiber, seedKey: ?() => T, seedValue: T) {
   // TODO: Warn if unmounted?
 }
 
+// updateNum 实际调用的函数
 function dispatchAction<S, A>(
-  fiber: Fiber,
-  queue: UpdateQueue<S, A>,
+  fiber: Fiber, // 该FunctionComponent对应的fiber
+  queue: UpdateQueue<S, A>, // hook.queue
   action: A,
 ) {
   if (__DEV__) {
@@ -1916,6 +1967,7 @@ function dispatchAction<S, A>(
   const eventTime = requestEventTime();
   const lane = requestUpdateLane(fiber);
 
+  // 创建update
   const update: Update<S, A> = {
     lane,
     action,
@@ -1924,14 +1976,19 @@ function dispatchAction<S, A>(
     next: (null: any),
   };
 
+  // 将update加入queue.pending
   const alternate = fiber.alternate;
   if (
+    // currentlyRenderingFiber即workInProgress，workInProgress存在代表当前处于render阶段
+    // 触发更新时通过bind预先保存的fiber与workInProgress全等，所以这是一个render阶段触发的更新，
+    // 需要标记变量didScheduleRenderPhaseUpdate
     fiber === currentlyRenderingFiber ||
     (alternate !== null && alternate === currentlyRenderingFiber)
   ) {
     // This is a render phase update. Stash it in a lazily-created map of
     // queue -> linked list of updates. After this render pass, we'll restart
     // and apply the stashed updates on top of the work-in-progress hook.
+    // render阶段触发的更新
     didScheduleRenderPhaseUpdateDuringThisPass = didScheduleRenderPhaseUpdate = true;
     const pending = queue.pending;
     if (pending === null) {
@@ -1968,6 +2025,8 @@ function dispatchAction<S, A>(
       queue.pending = update;
     }
 
+    // fiber的updateQueue为空，也就是fiber上不存在update，优化路径
+    // 提前计算state
     if (
       fiber.lanes === NoLanes &&
       (alternate === null || alternate.lanes === NoLanes)
@@ -1991,6 +2050,7 @@ function dispatchAction<S, A>(
           // without calling the reducer again.
           update.eagerReducer = lastRenderedReducer;
           update.eagerState = eagerState;
+          // 路径优化，：如果计算出的state与该hook之前保存的state一致，那么完全不需要开启一次调度。
           if (is(eagerState, currentState)) {
             // Fast path. We can bail out without scheduling React to re-render.
             // It's still possible that we'll need to rebase this update later,
@@ -2045,6 +2105,7 @@ function dispatchAction<S, A>(
     }
   }
 
+  // 开启调度
   if (enableSchedulingProfiler) {
     markStateUpdateScheduled(fiber, lane);
   }
@@ -2062,6 +2123,8 @@ function getCacheForType<T>(resourceType: () => T): T {
   }
   return cacheForType;
 }
+
+/** -----所有的hooks dispatcher定义----- **/
 
 export const ContextOnlyDispatcher: Dispatcher = {
   readContext,
@@ -2088,6 +2151,7 @@ if (enableCache) {
   (ContextOnlyDispatcher: Dispatcher).useCacheRefresh = throwInvalidHookError;
 }
 
+// mount时的hooks Dispatcher
 const HooksDispatcherOnMount: Dispatcher = {
   readContext,
 
@@ -2113,6 +2177,7 @@ if (enableCache) {
   (HooksDispatcherOnMount: Dispatcher).useCacheRefresh = mountRefresh;
 }
 
+// update时的hooks Dispatcher
 const HooksDispatcherOnUpdate: Dispatcher = {
   readContext,
 

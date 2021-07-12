@@ -857,10 +857,14 @@ function updateProfiler(
   return workInProgress.child;
 }
 
+// beginWork 的m arkRef
 function markRef(current: Fiber | null, workInProgress: Fiber) {
   const ref = workInProgress.ref;
+  // 为含有ref属性的fiber增加Ref effectTag
   if (
+    // mount时，存在ref属性
     (current === null && ref !== null) ||
+    // update时，ref属性改变
     (current !== null && current.ref !== ref)
   ) {
     // Schedule a Ref effect

@@ -160,6 +160,7 @@ function markUpdate(workInProgress: Fiber) {
   workInProgress.flags |= Update;
 }
 
+// completeWork的markRef ？？？
 function markRef(workInProgress: Fiber) {
   workInProgress.flags |= Ref;
 }

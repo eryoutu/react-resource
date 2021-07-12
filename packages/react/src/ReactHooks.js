@@ -47,6 +47,8 @@ export function getCacheForType<T>(resourceType: () => T): T {
   return dispatcher.getCacheForType(resourceType);
 }
 
+/** ----- hooks的定义 ----- **/
+
 export function useContext<T>(
   Context: ReactContext<T>,
   unstable_observedBits: number | boolean | void,

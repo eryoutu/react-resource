@@ -476,6 +476,7 @@ function commitHookEffectListUnmount(
   finishedWork: Fiber,
   nearestMountedAncestor: Fiber | null,
 ) {
+  // 要执行的effect保存在 finishedWork.updateQueue 上
   const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any);
   const lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
   if (lastEffect !== null) {
@@ -486,6 +487,7 @@ function commitHookEffectListUnmount(
         // Unmount
         const destroy = effect.destroy;
         effect.destroy = undefined;
+        // 销毁函数存在则执行
         if (destroy !== undefined) {
           safelyCallDestroy(finishedWork, nearestMountedAncestor, destroy);
         }
@@ -495,6 +497,8 @@ function commitHookEffectListUnmount(
   }
 }
 
+// 要执行的effect保存在 finishedWork.updateQueue 上
+// 啥时候挂上去的呢？
 function commitHookEffectListMount(tag: number, finishedWork: Fiber) {
   const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any);
   const lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
@@ -998,13 +1002,15 @@ function hideOrUnhideAllChildren(finishedWork, isHidden) {
 function commitAttachRef(finishedWork: Fiber) {
   const ref = finishedWork.ref;
   if (ref !== null) {
+    // 获取ref属性对应的Component实例、DOM实例
     const instance = finishedWork.stateNode;
-    // 获取DOM实例
     let instanceToUse;
     switch (finishedWork.tag) {
+      // 对于hostComponent，获取的是dom节点
       case HostComponent:
         instanceToUse = getPublicInstance(instance);
         break;
+      // 对于其他，获取的是fiber.stateNode
       default:
         instanceToUse = instance;
     }
@@ -1012,6 +1018,7 @@ function commitAttachRef(finishedWork: Fiber) {
     if (enableScopeAPI && finishedWork.tag === ScopeComponent) {
       instanceToUse = instance;
     }
+
     // 如果ref是函数形式，调用回调函数
     if (typeof ref === 'function') {
       if (
@@ -1060,9 +1067,11 @@ function commitDetachRef(current: Fiber) {
           recordLayoutEffectDuration(current);
         }
       } else {
+        // function类型ref，调用他，传参为null
         currentRef(null);
       }
     } else {
+      // 对象类型ref，current赋值为null
       currentRef.current = null;
     }
   }
@@ -1171,6 +1180,7 @@ function commitUnmount(
   }
 }
 
+// 递归执行这个 component 的子树中每个fiber节点的 unmount
 function commitNestedUnmounts(
   finishedRoot: FiberRoot,
   root: Fiber,
@@ -2099,12 +2109,14 @@ function commitMutationEffectsOnFiber(
   if (flags & Ref) {
     const current = finishedWork.alternate;
     if (current !== null) {
+      // 移除之前的ref
       commitDetachRef(current);
     }
     if (enableScopeAPI) {
       // TODO: This is a temporary solution that allowed us to transition away
       // from React Flare on www.
       if (finishedWork.tag === ScopeComponent) {
+        // 赋值ref
         commitAttachRef(finishedWork);
       }
     }
