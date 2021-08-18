@@ -871,6 +871,9 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
   }
 
   ensureRootIsScheduled(root, now());
+
+  // render阶段在满足一定条件时，该函数会将自己作为返回值。
+  // 所以performUnitOfWork被中断后可以重新启动
   if (root.callbackNode === originalCallbackNode) {
     // The task node scheduled for this root is the same one that's
     // currently executed. Need to return a continuation.
